@@ -14,7 +14,10 @@ def normalize_actuals(rows: list[dict[str, object]]) -> pd.DataFrame:
         return pd.DataFrame(columns=["start_time", "generation_mw"])
     frame["start_time"] = pd.to_datetime(frame.start_time, utc=True)
     frame["generation_mw"] = pd.to_numeric(frame.generation_mw, errors="coerce")
-    return frame[["start_time", "generation_mw"]].dropna().drop_duplicates("start_time").sort_values("start_time")
+    result = frame[["start_time", "generation_mw"]]
+    if result.isna().any().any() or (result["generation_mw"] < 0).any():
+        raise ValueError("Actual data contains null or negative generation")
+    return result.drop_duplicates("start_time").sort_values("start_time")
 
 
 def normalize_forecasts(rows: list[dict[str, object]]) -> tuple[pd.DataFrame, int]:
@@ -24,7 +27,8 @@ def normalize_forecasts(rows: list[dict[str, object]]) -> tuple[pd.DataFrame, in
     frame["source_start_time"] = pd.to_datetime(frame.source_start_time, utc=True)
     frame["publish_time"] = pd.to_datetime(frame.publish_time, utc=True)
     frame["generation_mw"] = pd.to_numeric(frame.generation_mw, errors="coerce")
-    frame = frame.dropna(subset=["source_start_time", "publish_time", "generation_mw"])
+    if frame[["source_start_time", "publish_time", "generation_mw"]].isna().any().any() or (frame["generation_mw"] < 0).any():
+        raise ValueError("Forecast data contains null or negative generation")
     first = frame[["source_start_time", "publish_time", "generation_mw"]].rename(columns={"source_start_time": "start_time"})
     second = first.assign(start_time=first.start_time + pd.Timedelta(minutes=30))
     expanded = pd.concat([first, second], ignore_index=True)
@@ -39,7 +43,7 @@ def build_snapshot(path: Path) -> dict[str, int]:
     while current <= END:
         actual_rows.extend(client.actual_day(current))
         current += timedelta(days=1)
-    forecast_rows = client.forecast_window(datetime.combine(START - timedelta(days=2), time.min, timezone.utc), datetime.combine(END + timedelta(days=2), time.min, timezone.utc))
+    forecast_rows = client.forecast_window(datetime.combine(START - timedelta(days=1), time.min, timezone.utc), datetime.combine(END + timedelta(days=2), time.min, timezone.utc))
     actuals = normalize_actuals(actual_rows)
     forecasts, duplicate_count = normalize_forecasts(forecast_rows)
     forecasts = forecasts[(forecasts.start_time.dt.date >= START) & (forecasts.start_time.dt.date <= END)]

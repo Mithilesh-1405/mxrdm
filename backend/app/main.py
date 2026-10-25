@@ -11,7 +11,8 @@ from fastapi.staticfiles import StaticFiles
 from backend.app.config import settings
 from backend.app.data import repository
 from backend.services.forecast_selection import select_decision
-from backend.services.metrics import error_distribution, metrics, positive_quantile, with_horizon
+from backend.services.metrics import error_distribution, metrics, with_horizon
+from backend.schemas import AccuracyMetrics, DailyAccuracy, DecisionView, ErrorDistribution, HealthResponse, HorizonAccuracy, MetaResponse
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 app = FastAPI(title="Wind Forecast Decision API", version="1.0.0")
@@ -69,19 +70,20 @@ def cached_decision(delivery_date: str, cutoff: str) -> str:
     return json.dumps(decision_data(date.fromisoformat(delivery_date), cutoff))
 
 
-@app.get("/health")
+@app.get("/health", response_model=HealthResponse)
+@app.get("/api/v1/health", response_model=HealthResponse)
 def health() -> dict[str, str]:
     available = settings.data_path.exists()
     return {"status": "ok" if available else "degraded", "snapshot": "available" if available else "missing"}
 
 
-@app.get("/api/v1/meta")
+@app.get("/api/v1/meta", response_model=MetaResponse)
 def meta() -> dict[str, Any]:
     values = repository().metadata()
     return {"delivery_dates": [date(2026, 1, 1) + timedelta(days=i) for i in range(31)], "coverage": {"start": values["start_date"], "end": values["end_date"]}, "default_cutoff": settings.default_cutoff, "row_counts": {"actuals": int(values["actual_count"]), "forecasts": int(values["forecast_count"])}, "data_quality": {"missing_slots": int(values["missing_slots"]), "duplicate_publish_rows": int(values["duplicate_publish_rows"]), "resolution_notes": values["resolution_notes"]}}
 
 
-@app.get("/api/v1/forecast/decision-view")
+@app.get("/api/v1/forecast/decision-view", response_model=DecisionView)
 def decision_view(delivery_date: str = Query(...), cutoff: str = Query(settings.default_cutoff)) -> Any:
     try:
         parsed_date = valid_date(delivery_date, "delivery_date")
@@ -92,23 +94,7 @@ def decision_view(delivery_date: str = Query(...), cutoff: str = Query(settings.
         return error("invalid_request", str(exc))
 
 
-@app.get("/api/v1/forecast/vintages")
-def vintages(delivery_date: str = Query(...)) -> Any:
-    try:
-        parsed = valid_date(delivery_date, "delivery_date")
-        frame = repository().forecasts()
-        frame = frame[frame.start_time.dt.date == parsed]
-        if frame.empty:
-            return error("empty_result", "No forecast vintages are available", 404)
-        result = []
-        for publish_time, group in frame.groupby("publish_time"):
-            result.append({"publish_time": publish_time.to_pydatetime(), "points": [{"start_time": row.start_time.to_pydatetime(), "forecast_mw": float(row.generation_mw)} for row in group.itertuples()]})
-        return {"delivery_date": parsed, "vintages": result}
-    except (FileNotFoundError, ValueError) as exc:
-        return error("invalid_request", str(exc), 503 if isinstance(exc, FileNotFoundError) else 400)
-
-
-@app.get("/api/v1/accuracy/summary")
+@app.get("/api/v1/accuracy/summary", response_model=AccuracyMetrics)
 def accuracy_summary(cutoff: str = Query(settings.default_cutoff), start: str = Query("2026-01-01"), end: str = Query("2026-01-31")) -> Any:
     try:
         parsed_start = valid_date(start, "start")
@@ -120,13 +106,13 @@ def accuracy_summary(cutoff: str = Query(settings.default_cutoff), start: str = 
         return error("invalid_request", str(exc), 503 if isinstance(exc, FileNotFoundError) else 400)
 
 
-@app.get("/api/v1/accuracy/daily")
+@app.get("/api/v1/accuracy/daily", response_model=list[DailyAccuracy])
 def daily(cutoff: str = Query(settings.default_cutoff)) -> Any:
     frame = daily_frame(valid_cutoff(cutoff), date(2026, 1, 1), date(2026, 1, 31))
     return [{"delivery_date": date(2026, 1, 1) + timedelta(days=i), **metrics(frame[frame.start_time.dt.date == date(2026, 1, 1) + timedelta(days=i)])} for i in range(31)]
 
 
-@app.get("/api/v1/accuracy/by-horizon")
+@app.get("/api/v1/accuracy/by-horizon", response_model=list[HorizonAccuracy])
 def by_horizon(cutoff: str = Query(settings.default_cutoff)) -> Any:
     valid_cutoff(cutoff)
     forecasts = repository().forecasts()
@@ -135,45 +121,9 @@ def by_horizon(cutoff: str = Query(settings.default_cutoff)) -> Any:
     return [{"bucket": bucket, **metrics(frame[frame.bucket == bucket])} for bucket in ["0-6h", "6-12h", "12-24h", "24-36h", "36-48h", "48h+"]]
 
 
-@app.get("/api/v1/accuracy/by-hour-of-day")
-def by_hour(cutoff: str = Query(settings.default_cutoff)) -> Any:
-    frame = daily_frame(valid_cutoff(cutoff), date(2026, 1, 1), date(2026, 1, 31))
-    frame["hour"] = frame.start_time.dt.tz_convert("Europe/London").dt.hour
-    return [{"hour": hour, **metrics(frame[frame.hour == hour])} for hour in range(24)]
-
-
-@app.get("/api/v1/accuracy/by-wind-level")
-def by_wind(cutoff: str = Query(settings.default_cutoff)) -> Any:
-    frame = daily_frame(valid_cutoff(cutoff), date(2026, 1, 1), date(2026, 1, 31))
-    labels = ["<5GW", "5-10GW", "10-15GW", "15-20GW", "20GW+"]
-    frame["bucket"] = pd.cut(frame.actual_mw, [-float("inf"), 5000, 10000, 15000, 20000, float("inf")], labels=labels)
-    return [{"bucket": label, **metrics(frame[frame.bucket == label])} for label in labels]
-
-
-@app.get("/api/v1/accuracy/error-distribution")
+@app.get("/api/v1/accuracy/error-distribution", response_model=ErrorDistribution)
 def distribution(cutoff: str = Query(settings.default_cutoff)) -> Any:
     return error_distribution(daily_frame(valid_cutoff(cutoff), date(2026, 1, 1), date(2026, 1, 31)))
-
-
-@app.get("/api/v1/accuracy/safety-margin")
-def safety(confidence: float = Query(.9, gt=0, lt=1), cutoff: str = Query(settings.default_cutoff)) -> Any:
-    cutoff = valid_cutoff(cutoff)
-    frame = daily_frame(cutoff, date(2026, 1, 1), date(2026, 1, 31))
-    daily_values = [{"delivery_date": date(2026, 1, 1) + timedelta(days=i), "buffer_mw": positive_quantile(frame[frame.start_time.dt.date == date(2026, 1, 1) + timedelta(days=i)], confidence)} for i in range(31)]
-    return {"confidence": confidence, "overall_buffer_mw": positive_quantile(frame, confidence), "daily": daily_values}
-
-
-@app.get("/api/v1/export/decision-view.csv")
-def export_decision(delivery_date: str = Query(...), cutoff: str = Query(settings.default_cutoff)) -> Response:
-    frame = select_decision(repository().actuals(), repository().forecasts(), valid_date(delivery_date, "delivery_date"), valid_cutoff(cutoff))
-    return Response(frame.to_csv(index=False), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=decision-view.csv"})
-
-
-@app.get("/api/v1/export/accuracy.csv")
-def export_accuracy(cutoff: str = Query(settings.default_cutoff)) -> Response:
-    frame = daily_frame(valid_cutoff(cutoff), date(2026, 1, 1), date(2026, 1, 31))
-    return Response(frame.to_csv(index=False), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=accuracy.csv"})
-
 
 if settings.static_dir and settings.static_dir.exists():
     app.mount("/assets", StaticFiles(directory=settings.static_dir / "assets"), name="assets")

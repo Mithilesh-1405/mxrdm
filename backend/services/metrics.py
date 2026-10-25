@@ -31,8 +31,6 @@ def error_distribution(frame: pd.DataFrame, width: float = 1000.0) -> dict[str, 
     edges = [low + index * width for index in range(int((high - low) / width) + 1)]
     return {"bins": [{"lower": edge, "upper": edge + width, "count": int(((values >= edge) & (values < edge + width)).sum())} for edge in edges[:-1]], "bin_width": width}
 
-
-def positive_quantile(frame: pd.DataFrame, confidence: float) -> float | None:
     values = frame.error_mw.dropna()
     values = values[values > 0]
     return float(values.quantile(confidence)) if not values.empty else None

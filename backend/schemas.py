@@ -1,4 +1,4 @@
-from datetime import date, datetime
+﻿from datetime import date, datetime
 from pydantic import BaseModel
 
 class ErrorDetail(BaseModel):
@@ -7,6 +7,10 @@ class ErrorDetail(BaseModel):
 
 class ErrorResponse(BaseModel):
     error: ErrorDetail
+
+class HealthResponse(BaseModel):
+    status: str
+    snapshot: str
 
 class DecisionRow(BaseModel):
     start_time: datetime
@@ -30,3 +34,48 @@ class DecisionView(BaseModel):
     cutoff: str
     rows: list[DecisionRow]
     summary: DecisionSummary
+
+class AccuracyMetrics(BaseModel):
+    mae: float | None
+    rmse: float | None
+    bias: float | None
+    mape: float | None
+    normalized_mae: float | None
+    median_abs_error: float | None
+    p90_abs_error: float | None
+    p95_abs_error: float | None
+    p05_error: float | None
+    p95_error: float | None
+    under_forecast_share: float | None
+    n_slots: int
+
+class DailyAccuracy(AccuracyMetrics):
+    delivery_date: date
+
+class HorizonAccuracy(AccuracyMetrics):
+    bucket: str
+
+class DistributionBin(BaseModel):
+    lower: float
+    upper: float
+    count: int
+
+class ErrorDistribution(BaseModel):
+    bins: list[DistributionBin]
+    bin_width: float
+
+class Coverage(BaseModel):
+    start: date
+    end: date
+
+class DataQuality(BaseModel):
+    missing_slots: int
+    duplicate_publish_rows: int
+    resolution_notes: str
+
+class MetaResponse(BaseModel):
+    delivery_dates: list[date]
+    coverage: Coverage
+    default_cutoff: str
+    row_counts: dict[str, int]
+    data_quality: DataQuality

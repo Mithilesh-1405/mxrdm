@@ -1,4 +1,4 @@
-﻿name: verify
+name: verify
 on:
   push:
     branches: ["**"]
@@ -11,7 +11,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r backend/requirements.txt
-      - run: python -m compileall -q backend
+      - run: pytest backend/tests -q
   frontend:
     runs-on: ubuntu-latest
     steps:

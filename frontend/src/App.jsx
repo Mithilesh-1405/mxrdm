@@ -8,53 +8,42 @@ import {
   useNavigate,
 } from "react-router-dom";
 import {
-  Area,
   Bar,
   CartesianGrid,
   ComposedChart,
   Line,
   ResponsiveContainer,
-  Scatter,
-  ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 import {
   AlertCircle,
-  ArrowDownToLine,
   BarChart3,
   CalendarDays,
-  ChevronRight,
-  CircleHelp,
   Gauge,
   Leaf,
   Menu,
   Moon,
   RefreshCw,
-  ShieldCheck,
   Sun,
   X,
   Zap,
 } from "lucide-react";
-import { getAccuracyCsvUrl, getDecisionCsvUrl } from "./api/client";
+
 import {
   useAccuracySummary,
   useDailyAccuracy,
   useDecisionView,
   useErrorDistribution,
-  useHourAccuracy,
   useHorizonAccuracy,
   useMeta,
-  useSafetyMargin,
-  useVintages,
-  useWindAccuracy,
 } from "./api/hooks";
 import "./App.css";
 
 const formatNumber = (value, digits = 0) =>
-  value == null
-    ? ""
+  value == null || !Number.isFinite(Number(value))
+    ? "Unavailable"
     : new Intl.NumberFormat("en-GB", { maximumFractionDigits: digits }).format(
         value,
       );
@@ -70,9 +59,7 @@ const formatTime = (value) =>
         hour: "2-digit",
         minute: "2-digit",
       }).format(new Date(value))
-    : "";
-const percent = (value, digits = 1) =>
-  value == null ? "" : `${formatNumber(value, digits)}%`;
+    : "Unavailable";
 
 function useControls(meta) {
   const navigate = useNavigate();
@@ -80,7 +67,6 @@ function useControls(meta) {
   const params = new URLSearchParams(location.search);
   const date = params.get("date") || meta?.delivery_dates?.[14] || "2026-01-15";
   const cutoff = params.get("cutoff") || meta?.default_cutoff || "09:00";
-  const confidence = Number(params.get("confidence") || 0.9);
   const update = (key, value) => {
     const next = new URLSearchParams(location.search);
     next.set(key, value);
@@ -89,10 +75,8 @@ function useControls(meta) {
   return {
     date,
     cutoff,
-    confidence,
     setDate: (value) => update("date", value),
     setCutoff: (value) => update("cutoff", value),
-    setConfidence: (value) => update("confidence", value),
   };
 }
 
@@ -124,11 +108,6 @@ function App() {
                 path="/accuracy"
                 element={<AccuracyPage cutoff={controls.cutoff} />}
               />
-              <Route
-                path="/procurement"
-                element={<ProcurementPage {...controls} />}
-              />
-              <Route path="/about" element={<AboutPage meta={meta.data} />} />
             </Routes>
           )}
         </main>
@@ -176,7 +155,6 @@ function Header({ dark, onTheme }) {
     </header>
   );
 }
-
 function Sidebar() {
   return (
     <aside className="sidebar">
@@ -202,19 +180,10 @@ function NavItems({ onClick }) {
         <BarChart3 size={17} />
         Forecast Accuracy
       </NavLink>
-      <NavLink onClick={onClick} to="/procurement">
-        <ShieldCheck size={17} />
-        Procurement Guidance
-      </NavLink>
-      <NavLink onClick={onClick} to="/about">
-        <CircleHelp size={17} />
-        About & Data Quality
-      </NavLink>
     </nav>
   );
 }
-
-export function ControlBar({ meta, controls }) {
+function ControlBar({ meta, controls }) {
   return (
     <section className="control-bar">
       <div className="control-intro">
@@ -244,23 +213,10 @@ export function ControlBar({ meta, controls }) {
             onChange={(event) => controls.setCutoff(event.target.value)}
           />
         </label>
-        <label>
-          Confidence
-          <select
-            value={controls.confidence}
-            onChange={(event) => controls.setConfidence(event.target.value)}
-          >
-            <option value="0.8">80%</option>
-            <option value="0.9">90%</option>
-            <option value="0.95">95%</option>
-            <option value="0.99">99%</option>
-          </select>
-        </label>
       </div>
     </section>
   );
 }
-
 function PageHeading({ kicker, title, children }) {
   return (
     <div className="page-heading">
@@ -272,9 +228,9 @@ function PageHeading({ kicker, title, children }) {
     </div>
   );
 }
-function Panel({ title, subtitle, children, className = "" }) {
+function Panel({ title, subtitle, children }) {
   return (
-    <section className={`panel ${className}`}>
+    <section className="panel">
       <div className="panel-heading">
         <div>
           <h2>{title}</h2>
@@ -301,7 +257,13 @@ function ErrorState({ message }) {
     </div>
   );
 }
-
+function EmptyState() {
+  return (
+    <div className="state-box">
+      <span>No data available for this view.</span>
+    </div>
+  );
+}
 export function Kpi({ label, value, unit, accent = false, detail }) {
   return (
     <article className={`kpi ${accent ? "accent-kpi" : ""}`}>
@@ -331,48 +293,33 @@ function ChartTooltip({ active, payload, label }) {
 
 function DecisionPage({ date, cutoff }) {
   const decision = useDecisionView(date, cutoff);
-  const vintages = useVintages(date);
   const accuracy = useAccuracySummary(cutoff);
-  const [showVintages, setShowVintages] = useState(false);
-  if (decision.isLoading) return <LoadingState />;
-  if (decision.error) return <ErrorState message={decision.error.message} />;
+  if (decision.isLoading || accuracy.isLoading) return <LoadingState />;
+  if (decision.error || accuracy.error)
+    return <ErrorState message={(decision.error || accuracy.error).message} />;
+  if (!decision.data.rows.length) return <EmptyState />;
   const data = decision.data;
   const chartData = data.rows.map((row) => ({
     ...row,
     time: formatTime(row.start_time),
     lower:
-      row.forecast_mw == null || accuracy.data?.p05_error == null
+      row.forecast_mw == null || accuracy.data.p05_error == null
         ? null
         : row.forecast_mw + accuracy.data.p05_error,
     upper:
-      row.forecast_mw == null || accuracy.data?.p95_error == null
+      row.forecast_mw == null || accuracy.data.p95_error == null
         ? null
         : row.forecast_mw + accuracy.data.p95_error,
   }));
   return (
     <>
-      <PageHeading kicker="Day-ahead position" title="Decision View">
-        <a
-          className="button secondary"
-          href={getDecisionCsvUrl(date, cutoff)}
-          download
-        >
-          <ArrowDownToLine size={16} />
-          Export CSV
-        </a>
-      </PageHeading>
+      <PageHeading kicker="Day-ahead position" title="Decision View" />
       <div className="notice">
         <Zap size={17} />
         <span>
           Forecast used: latest published at or before <strong>{cutoff}</strong>{" "}
-          on{" "}
-          {formatDate(
-            new Date(new Date(`${date}T12:00:00`).getTime() - 86400000)
-              .toISOString()
-              .slice(0, 10),
-          )}
-          . Positive error means actual wind exceeded forecast and more power
-          may need to be bought.
+          on the previous day. Positive error means actual wind exceeded
+          forecast and more power may need to be bought.
         </span>
       </div>
       <div className="kpi-grid">
@@ -393,11 +340,6 @@ function DecisionPage({ date, cutoff }) {
           unit="MW"
         />
         <Kpi
-          label="Mean horizon"
-          value={formatNumber(data.summary.mean_horizon_hours, 1)}
-          unit="h"
-        />
-        <Kpi
           label="Completeness"
           value={formatNumber(data.summary.completeness_pct, 1)}
           unit="%"
@@ -406,27 +348,13 @@ function DecisionPage({ date, cutoff }) {
       </div>
       <Panel
         title="Decision-time wind profile"
-        subtitle="Forecast, actual outturn, and historical error envelope"
+        subtitle="Decision forecast, actual outturn, and historical error envelope"
       >
-        <div className="chart-actions">
-          <label className="toggle">
-            <input
-              type="checkbox"
-              checked={showVintages}
-              onChange={(event) => setShowVintages(event.target.checked)}
-            />
-            <span />
-            Show other forecast vintages
-          </label>
-        </div>
-        <DecisionChart
-          data={chartData}
-          vintages={showVintages ? vintages.data?.vintages : []}
-        />
+        <DecisionChart data={chartData} />
       </Panel>
       <Panel
         title="Half-hourly position"
-        subtitle="Hover chart points for publication time and horizon"
+        subtitle="Publication time and forecast horizon for each slot"
       >
         <DecisionTable rows={data.rows} />
       </Panel>
@@ -434,7 +362,7 @@ function DecisionPage({ date, cutoff }) {
   );
 }
 
-export function DecisionChart({ data, vintages = [] }) {
+export function DecisionChart({ data }) {
   return (
     <div className="chart-wrap">
       <ResponsiveContainer width="100%" height={360}>
@@ -442,12 +370,6 @@ export function DecisionChart({ data, vintages = [] }) {
           data={data}
           margin={{ top: 10, right: 12, left: -12, bottom: 4 }}
         >
-          <defs>
-            <linearGradient id="errorBand" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#e2a73b" stopOpacity=".25" />
-              <stop offset="100%" stopColor="#e2a73b" stopOpacity=".04" />
-            </linearGradient>
-          </defs>
           <CartesianGrid vertical={false} stroke="var(--grid)" />
           <XAxis
             dataKey="time"
@@ -461,18 +383,6 @@ export function DecisionChart({ data, vintages = [] }) {
             tickFormatter={(value) => `${Math.round(value / 1000)}k`}
           />
           <Tooltip content={<ChartTooltip />} />
-          <Area
-            dataKey="upper"
-            stroke="none"
-            fill="url(#errorBand)"
-            name="P95 envelope"
-          />
-          <Area
-            dataKey="lower"
-            stroke="none"
-            fill="var(--surface)"
-            name="P05 envelope"
-          />
           <Line
             dataKey="forecast_mw"
             stroke="#0f766e"
@@ -488,20 +398,6 @@ export function DecisionChart({ data, vintages = [] }) {
             name="Actual"
             connectNulls={false}
           />
-          {vintages?.slice(-4).map((vintage, index) => (
-            <Line
-              key={vintage.publish_time}
-              data={vintage.points.map((point) => ({
-                time: formatTime(point.start_time),
-                [`v${index}`]: point.forecast_mw,
-              }))}
-              dataKey={`v${index}`}
-              stroke="#8a98a8"
-              strokeOpacity={0.25}
-              dot={false}
-              name="Vintage"
-            />
-          ))}
         </ComposedChart>
       </ResponsiveContainer>
     </div>
@@ -530,7 +426,6 @@ export function DecisionTable({ rows }) {
               <th key={key}>
                 <button className="sort-button" onClick={() => setSort(key)}>
                   {label}
-                  <ChevronRight size={12} />
                 </button>
               </th>
             ))}
@@ -559,42 +454,17 @@ function AccuracyPage({ cutoff }) {
   const summary = useAccuracySummary(cutoff);
   const daily = useDailyAccuracy(cutoff);
   const horizons = useHorizonAccuracy(cutoff);
-  const hours = useHourAccuracy(cutoff);
-  const wind = useWindAccuracy(cutoff);
   const distribution = useErrorDistribution(cutoff);
-  if (
-    [summary, daily, horizons, hours, wind, distribution].some(
-      (query) => query.isLoading,
-    )
-  )
+  if ([summary, daily, horizons, distribution].some((query) => query.isLoading))
     return <LoadingState />;
-  const failure = [summary, daily, horizons, hours, wind, distribution].find(
+  const failure = [summary, daily, horizons, distribution].find(
     (query) => query.error,
   );
   if (failure) return <ErrorState message={failure.error.message} />;
-  const scatter = daily.data.flatMap((day) =>
-    day.mae == null
-      ? []
-      : [
-          {
-            actual: day.mae,
-            forecast: Math.abs(day.bias || 0),
-            day: day.delivery_date,
-          },
-        ],
-  );
+  if (!daily.data.length) return <EmptyState />;
   return (
     <>
-      <PageHeading kicker="Model performance" title="Forecast Accuracy">
-        <a
-          className="button secondary"
-          href={getAccuracyCsvUrl(cutoff)}
-          download
-        >
-          <ArrowDownToLine size={16} />
-          Export CSV
-        </a>
-      </PageHeading>
+      <PageHeading kicker="Model performance" title="Forecast Accuracy" />
       <div className="kpi-grid">
         <Kpi
           label="MAE"
@@ -605,40 +475,36 @@ function AccuracyPage({ cutoff }) {
         <Kpi label="RMSE" value={formatNumber(summary.data.rmse)} unit="MW" />
         <Kpi label="Bias" value={formatNumber(summary.data.bias)} unit="MW" />
         <Kpi
-          label="Normalized MAE"
-          value={percent(summary.data.normalized_mae * 100)}
-        />
-        <Kpi
           label="P90 abs error"
           value={formatNumber(summary.data.p90_abs_error)}
           unit="MW"
         />
         <Kpi
-          label="Under-forecast share"
-          value={percent(summary.data.under_forecast_share * 100)}
+          label="P95 abs error"
+          value={formatNumber(summary.data.p95_abs_error)}
+          unit="MW"
         />
       </div>
       <div className="chart-grid">
-        <Panel title="Daily MAE" subtitle="How error moved across January">
+        <Panel title="Daily MAE" subtitle="Error across January">
           <SimpleChart
             data={daily.data.map((row) => ({
               ...row,
               day: row.delivery_date.slice(8),
-              mae: row.mae,
+              value: row.mae,
             }))}
             x="day"
-            y="mae"
+            y="value"
             name="MAE"
             color="#0f766e"
           />
         </Panel>
         <Panel
           title="Error by horizon"
-          subtitle="All available forecast vintages"
+          subtitle="Forecast vintage horizon buckets"
         >
           <BarChart
             data={horizons.data.map((row) => ({
-              ...row,
               label: row.bucket,
               value: row.mae,
             }))}
@@ -648,39 +514,12 @@ function AccuracyPage({ cutoff }) {
             color="#e2a73b"
           />
         </Panel>
-        <Panel title="Error by hour" subtitle="Europe/London local time">
-          <SimpleChart
-            data={hours.data.map((row) => ({
-              ...row,
-              label: `${row.hour}:00`,
-              value: row.mae,
-            }))}
-            x="label"
-            y="value"
-            name="MAE"
-            color="#1d3557"
-          />
-        </Panel>
-        <Panel title="Error by wind level" subtitle="Actual wind level buckets">
-          <BarChart
-            data={wind.data.map((row) => ({
-              ...row,
-              label: row.bucket,
-              value: row.mae,
-            }))}
-            x="label"
-            y="value"
-            name="MAE"
-            color="#d46b47"
-          />
-        </Panel>
         <Panel
           title="Error distribution"
-          subtitle="Positive values indicate under-forecast"
+          subtitle="Positive error means under-forecast wind"
         >
           <BarChart
             data={distribution.data.bins.map((row) => ({
-              ...row,
               label: `${row.lower / 1000}k`,
               value: row.count,
             }))}
@@ -690,24 +529,10 @@ function AccuracyPage({ cutoff }) {
             color="#7967a9"
           />
         </Panel>
-        <Panel
-          title="Actual versus forecast"
-          subtitle="Daily aggregate error view"
-        >
-          <ResponsiveContainer width="100%" height={250}>
-            <ScatterChart margin={{ top: 10, right: 20, left: -12, bottom: 4 }}>
-              <CartesianGrid stroke="var(--grid)" />
-              <XAxis type="number" dataKey="actual" name="Actual MAE" />
-              <YAxis type="number" dataKey="forecast" name="Absolute bias" />
-              <Tooltip cursor={{ strokeDasharray: "3 3" }} />
-              <Scatter data={scatter} fill="#0f766e" />
-            </ScatterChart>
-          </ResponsiveContainer>
-        </Panel>
       </div>
       <Panel
         title="Per-day metrics"
-        subtitle="Full January decision-time selection"
+        subtitle="Decision-time selection across January"
       >
         <MetricTable rows={daily.data} />
       </Panel>
@@ -780,176 +605,6 @@ function MetricTable({ rows }) {
         </tbody>
       </table>
     </div>
-  );
-}
-
-function ProcurementPage({ date, cutoff, confidence }) {
-  const decision = useDecisionView(date, cutoff);
-  const safety = useSafetyMargin(confidence, cutoff);
-  if (decision.isLoading || safety.isLoading) return <LoadingState />;
-  if (decision.error || safety.error)
-    return <ErrorState message={(decision.error || safety.error).message} />;
-  const selected = safety.data.daily.find((row) => row.delivery_date === date);
-  const buffer = selected?.buffer_mw;
-  const forecast = decision.data.summary.avg_forecast_mw;
-  return (
-    <>
-      <PageHeading kicker="Purchase planning" title="Procurement Guidance">
-        <span className="confidence-chip">
-          {Math.round(confidence * 100)}% confidence
-        </span>
-      </PageHeading>
-      <div className="guidance-hero">
-        <div>
-          <span className="eyebrow">Recommended safety buffer</span>
-          <strong>
-            {formatNumber(buffer)} <small>MW</small>
-          </strong>
-          <p>
-            Empirical positive forecast error quantile for {formatDate(date)} at
-            the selected confidence. Add this buffer above the wind forecast
-            when covering wind shortfall risk.
-          </p>
-        </div>
-        <ShieldCheck size={48} />
-      </div>
-      <Panel
-        title="Scenario view"
-        subtitle="No demand assumption is included. This describes wind uncertainty only."
-      >
-        <table>
-          <thead>
-            <tr>
-              <th>Scenario</th>
-              <th>Wind position</th>
-              <th>Implied additional purchase</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Selected forecast</td>
-              <td>{formatNumber(forecast)} MW average</td>
-              <td>Baseline</td>
-            </tr>
-            <tr>
-              <td>Buffer-adjusted low case</td>
-              <td>
-                {formatNumber(
-                  forecast == null || buffer == null ? null : forecast - buffer,
-                )}{" "}
-                MW average
-              </td>
-              <td>{formatNumber(buffer)} MW</td>
-            </tr>
-          </tbody>
-        </table>
-      </Panel>
-      <Panel title="How to read this">
-        <div className="copy-block">
-          <p>
-            The buffer is the empirical {Math.round(confidence * 100)}th
-            percentile of positive error, where positive error means actual wind
-            was higher than the forecast. It is a wind forecast uncertainty
-            allowance, not a demand forecast or a guaranteed procurement volume.
-          </p>
-          <Link className="text-link" to="/accuracy">
-            Review the underlying accuracy metrics <ChevronRight size={15} />
-          </Link>
-        </div>
-      </Panel>
-    </>
-  );
-}
-
-function AboutPage({ meta }) {
-  return (
-    <>
-      <PageHeading kicker="Reference" title="About & Data Quality" />
-      <div className="about-grid">
-        <Panel title="Data sources">
-          <div className="copy-block">
-            <p>
-              All values come from the Elexon BMRS national wind datasets stored
-              in the local snapshot.
-            </p>
-            <ul>
-              <li>FUELHH supplies 30-minute wind generation actuals.</li>
-              <li>WINDFOR supplies forecast vintages.</li>
-              <li>Runtime requests never depend on live API availability.</li>
-            </ul>
-          </div>
-        </Panel>
-        <Panel title="Coverage">
-          <div className="quality-list">
-            <div>
-              <span>Delivery coverage</span>
-              <strong>
-                {formatDate(meta.coverage.start)}{" "}
-                {formatDate(meta.coverage.end)}
-              </strong>
-            </div>
-            <div>
-              <span>Actual rows</span>
-              <strong>{formatNumber(meta.row_counts.actuals)}</strong>
-            </div>
-            <div>
-              <span>Forecast rows</span>
-              <strong>{formatNumber(meta.row_counts.forecasts)}</strong>
-            </div>
-            <div>
-              <span>Missing slots</span>
-              <strong>{formatNumber(meta.data_quality.missing_slots)}</strong>
-            </div>
-            <div>
-              <span>Duplicate publish rows</span>
-              <strong>
-                {formatNumber(meta.data_quality.duplicate_publish_rows)}
-              </strong>
-            </div>
-          </div>
-        </Panel>
-        <Panel title="Definitions">
-          <div className="definition-list">
-            <div>
-              <b>MAE</b>
-              <span>Mean absolute error in MW.</span>
-            </div>
-            <div>
-              <b>RMSE</b>
-              <span>Root mean squared error, emphasizing larger misses.</span>
-            </div>
-            <div>
-              <b>Bias</b>
-              <span>
-                Actual minus forecast. Positive means under-forecast wind.
-              </span>
-            </div>
-            <div>
-              <b>MAPE</b>
-              <span>Absolute percentage error, guarded for zero actuals.</span>
-            </div>
-            <div>
-              <b>Safety buffer</b>
-              <span>
-                Positive-error empirical quantile at the chosen confidence.
-              </span>
-            </div>
-          </div>
-        </Panel>
-        <Panel title="Assumptions">
-          <div className="copy-block">
-            <p>
-              Decision cutoff defaults to {meta.default_cutoff} Europe/London on
-              the preceding day. WINDFOR hourly values are aligned to both
-              half-hour slots in the hour. Missing forecast slots remain missing
-              and are never silently filled.
-            </p>
-            <p>{meta.data_quality.resolution_notes}</p>
-            <p>AI tools were used to assist with building this application.</p>
-          </div>
-        </Panel>
-      </div>
-    </>
   );
 }
 

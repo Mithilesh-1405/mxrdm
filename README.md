@@ -1,4 +1,4 @@
-﻿# Northline Wind Desk
+# Northline Wind Desk
 
 Northline Wind Desk is a React and FastAPI decision-support application for UK day-ahead wind procurement. It shows the latest forecast available at the decision cutoff, compares it with national wind actuals, and quantifies uncertainty for procurement planning.
 
@@ -6,7 +6,7 @@ AI tools were used to assist in building this application.
 
 ## Project tree
 
-- `frontend/`: React and Vite application with the four operational views.
+- `frontend/`: React and Vite application with the two operational views.
 - `backend/`: FastAPI application, Elexon client, ingestion code, and local snapshot.
 - `backend/data/wind_snapshot.sqlite`: January 2026 runtime snapshot.
 - `Dockerfile`: Multi-stage frontend build and non-root Python runtime.
@@ -84,16 +84,10 @@ Run the production-like profile:
 - `GET /health`
 - `GET /api/v1/meta`
 - `GET /api/v1/forecast/decision-view?delivery_date=YYYY-MM-DD&cutoff=HH:MM`
-- `GET /api/v1/forecast/vintages?delivery_date=YYYY-MM-DD`
 - `GET /api/v1/accuracy/summary?cutoff=HH:MM&start=YYYY-MM-DD&end=YYYY-MM-DD`
 - `GET /api/v1/accuracy/daily`
 - `GET /api/v1/accuracy/by-horizon`
-- `GET /api/v1/accuracy/by-hour-of-day`
-- `GET /api/v1/accuracy/by-wind-level`
 - `GET /api/v1/accuracy/error-distribution`
-- `GET /api/v1/accuracy/safety-margin?confidence=0.9&cutoff=HH:MM`
-- `GET /api/v1/export/decision-view.csv?delivery_date=YYYY-MM-DD&cutoff=HH:MM`
-- `GET /api/v1/export/accuracy.csv?cutoff=HH:MM`
 
 Interactive API documentation is available at `/docs` when the backend is running.
 
