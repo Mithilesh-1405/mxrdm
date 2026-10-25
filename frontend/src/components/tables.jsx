@@ -10,16 +10,17 @@ export function DecisionTable({ rows }) {
   );
   return (
     <div className="table-scroll">
-      <table>
+            <p className="table-help">Each row is one 30-minute delivery period. Difference is actual wind minus forecast wind: negative means wind was lower than expected and extra power may be needed. Lead time is how far ahead the forecast was published.</p>
+<table>
         <thead>
           <tr>
             {[
-              ["start_time", "Start"],
-              ["forecast_mw", "Forecast"],
-              ["actual_mw", "Actual"],
-              ["error_mw", "Error"],
-              ["publish_time", "Published"],
-              ["horizon_hours", "Horizon"],
+              ["start_time", "Delivery time"],
+              ["forecast_mw", "Forecast wind"],
+              ["actual_mw", "Actual wind"],
+              ["error_mw", "Difference"],
+              ["publish_time", "Published at"],
+              ["horizon_hours", "Lead time"],
             ].map(([key, label]) => (
               <th key={key}>
                 <button className="sort-button" onClick={() => setSort(key)}>
