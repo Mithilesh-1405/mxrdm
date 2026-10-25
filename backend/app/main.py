@@ -178,3 +178,16 @@ def export_accuracy(cutoff: str = Query(settings.default_cutoff)) -> Response:
 if settings.static_dir and settings.static_dir.exists():
     app.mount("/assets", StaticFiles(directory=settings.static_dir / "assets"), name="assets")
 
+
+@app.get("/{path:path}")
+def spa_fallback(path: str) -> Response:
+    if path.startswith("api/") or path == "health":
+        return error("not_found", "Route not found", 404)
+    if settings.static_dir:
+        candidate = settings.static_dir / path
+        if candidate.is_file():
+            return Response(candidate.read_bytes(), media_type="text/html" if candidate.suffix == ".html" else None)
+        index = settings.static_dir / "index.html"
+        if index.exists():
+            return Response(index.read_bytes(), media_type="text/html")
+    return error("not_found", "Route not found", 404)
