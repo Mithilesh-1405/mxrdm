@@ -99,9 +99,9 @@ The default decision cutoff is 09:00 Europe/London on the preceding day. Cutoff 
 
 Only January 2026 delivery dates are accepted. Missing forecast slots remain missing. The application never invents demand data or silently fills missing values. Runtime reads use the local SQLite snapshot rather than the live API.
 
-Error is actual minus forecast. Positive error means the forecast under-predicted wind and represents additional power procurement risk.
+Error is actual minus forecast. Negative error means actual wind was lower than forecast, so extra power may need to be bought; positive error means wind was higher than forecast.
 
-MAE is mean absolute error. RMSE weights larger misses more heavily. Bias is mean signed error. MAPE excludes zero actuals. Normalized MAE is MAE divided by mean actual wind. Safety margin is the empirical quantile of positive error at the selected confidence.
+MAE is the mean absolute error in MW. Bias is the mean signed error in MW; negative means the forecast over-predicted wind.
 
 ## Deployment
 

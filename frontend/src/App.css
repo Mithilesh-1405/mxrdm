@@ -309,7 +309,7 @@ h2 {
 }
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 10px;
   margin-bottom: 20px;
 }
@@ -723,4 +723,11 @@ tbody tr:last-child td {
     grid-template-columns: 1fr;
     gap: 2px;
   }
+}
+
+.table-help {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
 }

@@ -1,4 +1,4 @@
-﻿from datetime import date, datetime
+from datetime import date, datetime
 from pydantic import BaseModel
 
 class ErrorDetail(BaseModel):
@@ -37,16 +37,7 @@ class DecisionView(BaseModel):
 
 class AccuracyMetrics(BaseModel):
     mae: float | None
-    rmse: float | None
     bias: float | None
-    mape: float | None
-    normalized_mae: float | None
-    median_abs_error: float | None
-    p90_abs_error: float | None
-    p95_abs_error: float | None
-    p05_error: float | None
-    p95_error: float | None
-    under_forecast_share: float | None
     n_slots: int
 
 class DailyAccuracy(AccuracyMetrics):
