@@ -68,7 +68,7 @@ export function Sidebar() {
 export function NavItems({ onClick }) {
   return (
     <nav className="nav-items">
-      <NavLink onClick={onClick} to="/" end>
+      <NavLink onClick={onClick} to="/decision" end>
         <Gauge size={17} />
         Decision View
       </NavLink>
