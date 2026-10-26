@@ -105,6 +105,8 @@ export function AccuracyPage({ cutoff }) {
             y="value"
             name="MAE"
             color="#0f766e"
+            xLabel="Delivery day"
+            yLabel="Typical error (MW)"
           />
         </Panel>
         <Panel
@@ -120,6 +122,8 @@ export function AccuracyPage({ cutoff }) {
             y="value"
             name="MAE"
             color="#e2a73b"
+            xLabel="Forecast lead time"
+            yLabel="Typical error (MW)"
           />
         </Panel>
         <Panel
@@ -132,6 +136,8 @@ export function AccuracyPage({ cutoff }) {
             y="value"
             name="Half-hours"
             color={SURPLUS_COLOR}
+            xLabel="Error range (thousand MW)"
+            yLabel="Number of half-hours"
           />
         </Panel>
       </div>
