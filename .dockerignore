@@ -6,4 +6,5 @@ frontend/dist
 backend/__pycache__
 backend/.pytest_cache
 *.pyc
+.venv
 .env

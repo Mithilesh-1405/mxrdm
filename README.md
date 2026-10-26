@@ -40,13 +40,14 @@ The Vite development proxy sends `/api` and `/health` requests to port 8000.
 
 ## Docker run
 
-Build the production image:
+The multi-stage build serves both the frontend and backend from one container.
 
-`docker build -t mxrdm .`
+Build the production image:
+`
 
 Run it on any available port:
 
-`docker run --rm -p 8080:8080 -e PORT=8080 mxrdm`
+`docker run --rm -p 8080:8080 -e PORT=8080 wind-app`
 
 Open `http://localhost:8080`.
 

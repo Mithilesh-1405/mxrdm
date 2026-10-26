@@ -1,4 +1,4 @@
-﻿FROM node:22-alpine AS frontend
+FROM node:20-alpine AS frontend
 WORKDIR /build
 COPY frontend/package*.json ./
 RUN npm ci
@@ -18,5 +18,5 @@ RUN useradd --create-home appuser && chown -R appuser:appuser /app
 USER appuser
 ENV PORT=8000
 EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s CMD python -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.getenv('PORT', '8000') + '/health')"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s CMD python -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.getenv('PORT', '8000') + '/api/v1/health')"
 CMD sh -c "uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
