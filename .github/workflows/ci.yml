@@ -1,0 +1,36 @@
+﻿name: verify
+on:
+  push:
+    branches: ["**"]
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r backend/requirements.txt
+      - run: python -m compileall -q backend
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefix frontend
+      - run: npm run lint --prefix frontend
+      - run: npm run build --prefix frontend
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t wind-app .
+      - run: docker run --rm -d --name wind-app -p 8080:8080 -e PORT=8080 wind-app
+      - run: sleep 15
+      - run: curl --fail http://localhost:8080/api/v1/health
+      - run: curl --fail http://localhost:8080/
+      - run: docker stop wind-app

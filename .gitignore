@@ -1,19 +1,31 @@
 # Dependencies
 node_modules/
+frontend/node_modules/
+Backend/node_modules/
 
 # Build output
 dist/
 dist-ssr/
 .vite/
+frontend/dist/
+Backend/dist/
 
 # Environment files
 .env
 .env.*
 !.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+Backend/.env
+Backend/.env.*
+!Backend/.env.example
 
 # Local files
 *.local
 .cache/
+frontend/.cache/
+Backend/.cache/
 
 # Test coverage
 coverage/
