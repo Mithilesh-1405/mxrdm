@@ -1,13 +1,20 @@
 import sqlite3
+from contextlib import closing
 from pathlib import Path
+
 import pandas as pd
+
 
 class SnapshotRepository:
     def __init__(self, path: Path):
-        self.path = path
+        self.path = Path(path).resolve()
+
+    def connect(self) -> sqlite3.Connection:
+        uri = f"{self.path.as_uri()}?mode=ro&immutable=1"
+        return sqlite3.connect(uri, uri=True, check_same_thread=False)
 
     def read(self, table: str) -> pd.DataFrame:
-        with sqlite3.connect(self.path) as connection:
+        with closing(self.connect()) as connection:
             return pd.read_sql_query(f"SELECT * FROM {table}", connection)
 
     def actuals(self) -> pd.DataFrame:
@@ -22,5 +29,7 @@ class SnapshotRepository:
         return frame
 
     def metadata(self) -> dict[str, str]:
-        with sqlite3.connect(self.path) as connection:
-            return dict(connection.execute("SELECT key, value FROM metadata").fetchall())
+        with closing(self.connect()) as connection:
+            return dict(
+                connection.execute("SELECT key, value FROM metadata").fetchall()
+            )

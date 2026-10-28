@@ -5,6 +5,7 @@ import httpx
 
 BASE_URL = "https://data.elexon.co.uk/bmrs/api/v1"
 
+
 class ElexonClient:
     def __init__(self, retries: int = 4):
         self.retries = retries
@@ -21,17 +22,28 @@ class ElexonClient:
             except (httpx.HTTPError, ValueError):
                 if attempt == self.retries - 1:
                     raise
-                time.sleep(2 ** attempt)
+                time.sleep(2**attempt)
         return []
 
     def actual_day(self, delivery_date: date) -> list[dict[str, Any]]:
         value = delivery_date.isoformat()
-        return self.get("/datasets/FUELHH/stream", {"settlementDateFrom": value, "settlementDateTo": value, "fuelType": "WIND"})
+        return self.get(
+            "/datasets/FUELHH/stream",
+            {
+                "settlementDateFrom": value,
+                "settlementDateTo": value,
+                "fuelType": "WIND",
+            },
+        )
 
     def forecast_day(self, start: datetime, end: datetime) -> list[dict[str, Any]]:
         def stamp(value: datetime) -> str:
             return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
-        return self.get("/datasets/WINDFOR/stream", {"publishDateTimeFrom": stamp(start), "publishDateTimeTo": stamp(end)})
+
+        return self.get(
+            "/datasets/WINDFOR/stream",
+            {"publishDateTimeFrom": stamp(start), "publishDateTimeTo": stamp(end)},
+        )
 
     def forecast_window(self, start: datetime, end: datetime) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
