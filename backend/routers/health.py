@@ -1,8 +1,8 @@
 ﻿from fastapi import APIRouter
-from backend.app.config import settings
-from backend.app.errors import error
-from backend.schemas import HealthResponse, MetaResponse
-from backend.services.api_data import meta_data
+from app.config import settings
+from app.errors import error
+from schemas import HealthResponse, MetaResponse
+from services.api_data import meta_data
 
 router = APIRouter()
 

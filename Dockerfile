@@ -16,7 +16,8 @@ COPY backend/ backend/
 COPY --from=frontend /build/dist frontend/dist/
 RUN useradd --create-home appuser && chown -R appuser:appuser /app
 USER appuser
+WORKDIR /app/backend
 ENV PORT=8000
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s CMD python -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.getenv('PORT', '8000') + '/api/v1/health')"
-CMD sh -c "uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+CMD sh -c "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"

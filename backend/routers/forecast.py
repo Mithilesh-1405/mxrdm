@@ -1,10 +1,10 @@
 ﻿import json
 from typing import Any
 from fastapi import APIRouter, Query
-from backend.app.config import settings
-from backend.app.errors import error
-from backend.schemas import DecisionView
-from backend.services.api_data import cached_decision, valid_cutoff, valid_date
+from app.config import settings
+from app.errors import error
+from schemas import DecisionView
+from services.api_data import cached_decision, valid_cutoff, valid_date
 
 router = APIRouter(prefix="/api/v1/forecast")
 

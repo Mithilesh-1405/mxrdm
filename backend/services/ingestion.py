@@ -2,7 +2,7 @@ from datetime import date, datetime, time, timedelta, timezone
 import sqlite3
 from pathlib import Path
 import pandas as pd
-from backend.clients.elexon import ElexonClient
+from clients.elexon import ElexonClient
 
 START = date(2026, 1, 1)
 END = date(2026, 1, 31)

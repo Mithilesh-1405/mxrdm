@@ -2,17 +2,17 @@
 from typing import Any
 import pandas as pd
 from fastapi import APIRouter, Query
-from backend.app.config import settings
-from backend.app.errors import error
-from backend.schemas import (
+from app.config import settings
+from app.errors import error
+from schemas import (
     AccuracyMetrics,
     DailyAccuracy,
     ErrorDistribution,
     HorizonAccuracy,
 )
-from backend.services.api_data import daily_frame, valid_cutoff, valid_date
-from backend.services.metrics import error_distribution, metrics, with_horizon
-from backend.app.data import repository
+from services.api_data import daily_frame, valid_cutoff, valid_date
+from services.metrics import error_distribution, metrics, with_horizon
+from app.data import repository
 
 router = APIRouter(prefix="/api/v1/accuracy")
 

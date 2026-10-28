@@ -1,6 +1,6 @@
 from functools import lru_cache
-from backend.app.config import settings
-from backend.repositories.sqlite import SnapshotRepository
+from app.config import settings
+from repositories.sqlite import SnapshotRepository
 
 
 @lru_cache(maxsize=1)

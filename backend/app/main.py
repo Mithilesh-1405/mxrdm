@@ -3,10 +3,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from backend.app.config import settings
-from backend.routers.accuracy import router as accuracy_router
-from backend.routers.forecast import router as forecast_router
-from backend.routers.health import router as health_router
+from app.config import settings
+from routers.accuracy import router as accuracy_router
+from routers.forecast import router as forecast_router
+from routers.health import router as health_router
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s"
@@ -46,8 +46,9 @@ def spa_fallback(path: str) -> Response:
             content={"error": {"code": "not_found", "message": "Route not found"}},
         )
     if settings.static_dir:
-        candidate = settings.static_dir / path
-        if candidate.is_file():
+        root = settings.static_dir.resolve()
+        candidate = (root / path).resolve()
+        if candidate.is_relative_to(root) and candidate.is_file():
             return Response(
                 candidate.read_bytes(),
                 media_type="text/html" if candidate.suffix == ".html" else None,

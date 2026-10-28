@@ -3,9 +3,9 @@ from functools import lru_cache
 import json
 from typing import Any
 import pandas as pd
-from backend.app.config import settings
-from backend.app.data import repository
-from backend.services.forecast_selection import select_decision
+from app.config import settings
+from app.data import repository
+from services.forecast_selection import select_decision
 
 
 def valid_date(value: str, name: str) -> date:
