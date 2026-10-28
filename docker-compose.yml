@@ -11,7 +11,7 @@
   backend:
     profiles: [dev]
     image: python:3.11-slim
-    working_dir: /workspace
+    working_dir: /workspace/backend
     volumes:
       - .:/workspace
     ports:
@@ -19,7 +19,7 @@
     environment:
       PORT: 8000
       CORS_ORIGINS: http://localhost:5173
-    command: sh -c "pip install -r backend/requirements.txt && uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload"
+    command: sh -c "pip install -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
   frontend:
     profiles: [dev]
     image: node:22-alpine
