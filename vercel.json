@@ -1,19 +1,36 @@
 ﻿{
+  "version": 2,
   "buildCommand": "cd frontend && npm ci && npm run build",
   "outputDirectory": "frontend/dist",
-  "functions": {
-    "api/index.py": {
-      "includeFiles": "backend/**"
-    }
+  "env": {
+    "PYTHONUNBUFFERED": "1"
   },
-  "rewrites": [
+  "services": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/index"
+      "name": "frontend",
+      "buildCommand": "cd frontend && npm ci && npm run build",
+      "outputDirectory": "frontend/dist",
+      "routes": [
+        {
+          "src": "/(?!api/).*",
+          "dest": "/index.html"
+        }
+      ]
     },
     {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
+      "name": "backend",
+      "runtime": "python3.11",
+      "buildCommand": "cd backend && pip install -r requirements.txt",
+      "routes": [
+        {
+          "src": "/api/(.*)",
+          "dest": "/api/index.py"
+        }
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "STATIC_DIR": ""
+      }
     }
   ]
 }
