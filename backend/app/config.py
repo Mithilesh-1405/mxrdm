@@ -2,13 +2,13 @@ from dataclasses import dataclass
 from pathlib import Path
 import os
 
-ROOT = Path(__file__).resolve().parents[2]
+BACKEND_DIR = Path(__file__).resolve().parents[1]
 
 
 @dataclass(frozen=True)
 class Settings:
     data_path: Path = Path(
-        os.getenv("DATA_PATH", str(ROOT / "backend" / "data" / "wind_snapshot.sqlite"))
+        os.getenv("DATA_PATH", str(BACKEND_DIR / "data" / "wind_snapshot.sqlite"))
     )
     static_dir: Path | None = (
         Path(os.environ["STATIC_DIR"]) if os.getenv("STATIC_DIR") else None
